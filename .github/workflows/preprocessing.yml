@@ -1,0 +1,48 @@
+name: Preprocessing Telco Churn
+
+# Runs the automated preprocessing whenever triggered (push to main, manual
+# dispatch) and returns the freshly processed dataset as a downloadable artifact.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "telco_raw.csv"
+      - "preprocessing/automate_Hilmi.py"
+      - ".github/workflows/preprocessing.yml"
+  workflow_dispatch:
+
+# Only one preprocessing run at a time per ref (avoids overlapping runs).
+concurrency:
+  group: preprocessing-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preprocess:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        # Pinned to the versions the committed dataset was produced with, so the
+        # preprocessing output is reproducible.
+        run: |
+          python -m pip install --upgrade pip
+          pip install scikit-learn==1.5.2 pandas==2.3.3 numpy==2.4.6 joblib==1.5.3
+
+      - name: Run automated preprocessing
+        run: |
+          python preprocessing/automate_Hilmi.py \
+            --input telco_raw.csv \
+            --output preprocessing/telco_preprocessing
+
+      - name: Upload processed dataset artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: telco_preprocessing
+          path: preprocessing/telco_preprocessing/
